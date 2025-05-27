@@ -423,16 +423,17 @@ def compute_three_body_energy(solution):
 
 # examples = [[0, 0, 0, 0, 1, 0, 0, np.sqrt(G*100000/1), 1.01, 0, 0, np.sqrt(G*100000/1.01), 100000, 1, 1]]
 M_sun = 3310000
-examples = [[0, 0, 0, 0, 1, 0, 0, np.sqrt(G*M_sun/1), -2, 0, 0, -np.sqrt(G*M_sun/2), M_sun, 1, 1]]
+# examples = [[0, 0, 0, 0, 1, 0, 0, np.sqrt(G*M_sun/1), -2, 0, 0, -np.sqrt(G*M_sun/2), M_sun, 1, 1]]
 
-# examples = samples.decreasing_dist
+examples = samples.decreasing_dist
 # examples = samples.increasing_2nd_body_mass
 
-# compare_orbits(examples, min_freq=20, max_freq=60, graph="orbit")
+compare_orbits(examples, min_freq=20, max_freq=60, graph="orbit")
 
-x0, y0, vx0, vy0, x1, y1, vx1, vy1, x2, y2, vx2, vy2, m0, m1, m2 = examples[0]
-three_body_solution = odeint(three_body, [x0, y0, vx0, vy0, x1, y1, vx1, vy1, x2, y2, vx2, vy2], t, args=(G, m0, m1, m2))
-plot_three_body_orbit(three_body_solution)
-plt.show()
+#x0, y0, vx0, vy0, x1, y1, vx1, vy1, x2, y2, vx2, vy2, m0, m1, m2 = examples[0]
+#three_body_solution = odeint(three_body, [x0, y0, vx0, vy0, x1, y1, vx1, vy1, x2, y2, vx2, vy2], t, args=(G, m0, m1, m2))
 
-compute_three_body_energy(three_body_solution)
+#plot_three_body_orbit(three_body_solution)
+#plt.show()
+
+#compute_three_body_energy(three_body_solution)

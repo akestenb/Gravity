@@ -209,9 +209,10 @@ def orbital_error(theoretical: NDArray, actual: NDArray, home_planet_mass: float
 # TESTING plot_two_body_orbit_interactive
 ###############################################################
 
-examples1 = samples.decreasing_dist
+examples1 = samples.increasing_2nd_body_mass
 
-x1, y1, vx1, vy1, x2, y2, vx2, vy2, m0, m1, m2 = examples1[7]
+x1, y1, vx1, vy1, x2, y2, vx2, vy2, m0, m1, m2 = examples1[1]
+
 two_body_solution = odeint(two_body, [x1, y1, vx1, vy1, x2, y2, vx2, vy2], t, args=(G, m0, m1, m2))
 one_body_solution = odeint(one_body, [x1, y1, vx1, vy1], t, args=(G, m0))
 
