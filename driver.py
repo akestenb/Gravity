@@ -99,17 +99,17 @@ vy1 = two_body_solution[:, 3]
 # Compute eccentricity over time
 a_vals = np.zeros_like(t)
 e_vals = np.zeros_like(t)
-for i in range(len(t)):
-    a_vals[i], e_vals[i] = orbital_elements(x1[i], y1[i], vx1[i], vy1[i], G, m0)
+#for i in range(len(t)):
+ #  a_vals[i], e_vals[i] = orbital_elements(x1[i], y1[i], vx1[i], vy1[i], G, m0)
 
 # Plot eccentricity over time
-plt.figure(figsize=(10,5))
-plt.plot(t, e_vals)
-plt.xlabel("Time")
-plt.ylabel("Eccentricity of Body 1")
-plt.title("Eccentricity of Body 1 over Time (Two-Body)")
-plt.grid(True)
-plt.show()
+#plt.figure(figsize=(10,5))
+#plt.plot(t, e_vals)
+#plt.xlabel("Time")
+#plt.ylabel("Eccentricity of Body 1")
+#plt.title("Eccentricity of Body 1 over Time (Two-Body)")
+#plt.grid(True)
+#plt.show()
 
 ## Energy Analysis ## (checks the conservation of energy, the pertubations should only cause small oscialltions)
 m1_val = m1  # mass of Body 1
