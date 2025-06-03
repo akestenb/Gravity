@@ -1,5 +1,8 @@
 import numpy as np 
 import matplotlib.pyplot as plt
+from scipy.stats import pearsonr
+from scipy.signal import correlate
+
 
 # Constants
 G = 6.67430e-11 # gravitiaional constant in m^3 kg^-1 s^-2
@@ -114,6 +117,45 @@ def symplectic_integrate_one_body(IVP, dt, steps, M, m):
 
     return solution
 
+# Helper function to calcualte the energy of the two body problem
+def energy_two_body(x1, y1, vx1, vy1, x2, y2, vx2, vy2, M, m1, m2, G=G):
+    
+    # Distances 
+    r1 = np.hypot(x1, y1)
+    r2 = np.hypot(x2, y2)
+    d12 = np.hypot(x2 - x1, y2 - y1)
+
+    # Kinetic Energy
+    KE = (0.5 * m1 * (vx1**2 + vy1**2)) + (0.5 * m2 * (vx2**2 + vy2**2))
+
+    # Potential Energy
+    PE = (-(G * M * m1) / r1 )- ((G * M * m2) / r2) - ((G * m1 * m2) / d12)
+
+    # Return total energy
+    return KE + PE
+
+
+# Helper function to calculate the energy of the one body problem 
+def energy_one_body(x, y, vx, vy, M, m, G=G):
+        # Distance 
+        r = np.hypot(x, y)
+        
+        # Kinetic Energy 
+        KE = 0.5 * m * (vx**2 + vy**2)
+
+        # Potential Energy 
+        PE = -(G * M * m)/r
+
+        # Total Energy
+        return KE + PE
+
+def angular_momentum_two_body(x1, y1, vx1, vy1, x2, y2, vx2, vy2, m1, m2):
+
+    L1 = m1 * (x1 * vy1 - y1 * vx1) # angular momentum of body 1
+    L2 = m2 * (x2 * vy2 - y2 * vx2) # angular momentum of body 2 
+
+    return L1 + L2
+
 
 # -------------------- Example Usage ----------------------------
 
@@ -139,8 +181,11 @@ IVP_2body= [x1, y1, vx1, vy1, x2, y2, vx2, vy2 ] # set Two- body intial conditio
 IVP_Earth= [x1, y1, vx1, vy1] # set One-body Earth intial conditions
 IVP_Mars = [x2, y2, vx2, vy2 ] # set One-body Mars intial conditions
 
-dt = 60 ** 2 # time step value (intially set to 1 hour)
-steps = 100000 # number of time steps 
+# Time
+dt = (60 ** 2)*24  # time step value (duration of each time step in seconds), initall set to 1 day
+total_time = 5000 # in years 
+total_time_seconds = total_time * 31556952
+steps = int(total_time_seconds / dt)
 
 # Run the simulations
 sol_2body = symplectic_integrate_two_body(IVP_2body, dt, steps, M, m1, m2)
@@ -150,15 +195,35 @@ sol_Mars = symplectic_integrate_one_body(IVP_Mars, dt, steps, M, m2)
 # Plot Orbits (includes graviaitional relationship between the two secondary bodies)
 
 # Extract Positions for plotting
-x1s, y1s = sol_2body[:, 0], sol_2body[:, 1] # two body Earth 
-x2s, y2s = sol_2body[:, 4], sol_2body[:, 5] # two body Mars
+x1s, y1s, vx1s, vy1s = sol_2body[:, 0], sol_2body[:, 1], sol_2body[:, 2], sol_2body[:, 3] # two body Earth 
+x2s, y2s, vx2s, vy2s = sol_2body[:, 4], sol_2body[:, 5], sol_2body[:, 6], sol_2body[:, 7] # two body Mars
 
-xE, yE = sol_Earth[:,0], sol_Earth[:,1] # one body Earth
-xM, yM= sol_Mars[:,0], sol_Mars[:,1] # one body Mars
+xE, yE, vxE, vyE = sol_Earth[:,0], sol_Earth[:,1], sol_Earth[:,2], sol_Earth[:,3] # one body Earth
+xM, yM, vxM, vyM = sol_Mars[:,0], sol_Mars[:,1], sol_Mars[:,2], sol_Mars[:,3]  # one body Mars
 
+# Two Body Energy Analysis
+E_2body = energy_two_body(x1s, y1s, vx1s, vy1s, x2s, y2s, vx2s, vy2s, M, m1, m2)
+
+# One Body Energy Analysis
+E_Earth = energy_one_body(xE, yE, vxE, vyE, M, m1)
+E_Mars = energy_one_body(xM, yM, vxM, vyM, M, m2)
+
+# Angular Momentum 
+L_2body = angular_momentum_two_body(x1s, y1s, vx1s, vy1s, x2s, y2s, vx2s, vy2s, m1, m2)
+
+# Statistical Relationship
+diff_Earth = np.hypot(x1s - xE, y1s - yE)
+diff_Mars =  np.hypot(x2s - xM, y2s - yM)
+
+correlation, _ = pearsonr(diff_Earth, diff_Mars)
+print(f"Correlation between Earth and Mars deviations: {correlation:.4f}")
+
+# Cross-correlation
+cross_corr = correlate(diff_Earth - np.mean(diff_Earth), diff_Mars - np.mean(diff_Mars), mode='full')
+lags = np.arange(-len(diff_Earth)+1, len(diff_Earth))
 # ------------------------------ Plotting the Results --------------------------- 
 
-# Plot the Two Body Solution with what the one body solution should be 
+'''# Plot the Two Body Solution with what the one body solution should be , one two seperate subplots 
 plt.figure(figsize=(14, 6))
 
 # --------- Subplot for Earth ---------
@@ -186,8 +251,101 @@ plt.grid(True)
 plt.legend()
 
 plt.tight_layout()
+plt.show()'''
+
+# Plot Earh and Mars on the Same Graph
+plt.figure(figsize=(8, 8))              # square aspect makes it easier to judge the shapes
+
+# Earth
+plt.plot(xE, yE,  '--',  label='Earth (1-body)', color='cyan')
+plt.plot(x1s, y1s,      label='Earth (2-body)', color='blue')
+
+# Mars
+plt.plot(xM, yM,  '--',  label='Mars (1-body)',  color='salmon')
+plt.plot(x2s, y2s,      label='Mars (2-body)',  color='orange')
+
+# Sun at the origin
+plt.scatter(0, 0, color='yellow', edgecolors='black', s=120, zorder=5, label='Sun')
+
+plt.xlabel('x (m)')
+plt.ylabel('y (m)')
+plt.title('Earth & Mars: 1-body vs 2-body orbits (same axes)')
+plt.axis('equal')
+plt.grid(True)
+#plt.legend()
+plt.tight_layout()
+plt.show()
+
+# --------------------------- Result Validation ------------------------------------
+
+#  Plot the Energy Error ( ~ e-14 ) 
+t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
+
+plt.figure(figsize=(10,4))
+plt.plot(t, (E_2body - E_2body[0]) / abs(E_2body[0]), label='Earth+Mars (2-body)')
+plt.xlabel('Time (years)')
+plt.ylabel('Relative energy error ΔE / E₀')
+plt.title('Energy conservation of 4th-order symplectic integrator')
+plt.grid(True)
+#plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Plot Angular Momentum
+plt.figure(figsize=(10,4))
+plt.plot(t, (L_2body - L_2body[0]) / abs(L_2body[0]), label='Angular momentum error')
+plt.xlabel('Time (years)')
+plt.ylabel('ΔL / L₀')
+plt.title('Angular momentum conservation (2-body)')
+plt.grid(True)
+#plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Plot Orbital Divergence
+diff_Earth = np.hypot(x1s - xE, y1s - yE)
+diff_Mars =  np.hypot(x2s - xM, y2s - yM)
+
+plt.figure(figsize=(10, 4))
+plt.plot(t, diff_Earth, label='Earth orbital deviation')
+plt.plot(t, diff_Mars, label='Mars orbital deviation')
+plt.xlabel("Time (years)")
+plt.ylabel("Position Difference (m)")
+plt.title("Deviation from 1-body orbits due to mutual interaction")
+plt.grid(True)
+#plt.legend()
+plt.tight_layout()
 plt.show()
 
 
+# Plot Phase Space Plots 
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.plot(xE, vxE, '--', label='Earth (1-body)', alpha=0.6)
+plt.plot(x1s, vx1s, label='Earth (2-body)', alpha=0.6)
+plt.xlabel('x (m)')
+plt.ylabel('vx (m/s)')
+plt.title('Earth Phase Space')
+plt.grid(True)
+#plt.legend()
 
+plt.subplot(1, 2, 2)
+plt.plot(xM, vxM, '--', label='Mars (1-body)', alpha=0.6)
+plt.plot(x2s, vx2s, label='Mars (2-body)', alpha=0.6)
+plt.xlabel('x (m)')
+plt.ylabel('vx (m/s)')
+plt.title('Mars Phase Space')
+plt.grid(True)
+#plt.legend()
+plt.tight_layout()
+plt.show()
 
+# Plot Cross Correlation
+plt.figure(figsize=(10, 4))
+plt.plot(lags * dt / (60*60*24*365.25), cross_corr)
+plt.xlabel('Lag (years)')
+plt.ylabel('Cross-correlation')
+plt.title('Cross-correlation of orbital deviations: Earth vs Mars')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
