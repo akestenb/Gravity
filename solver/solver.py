@@ -164,6 +164,10 @@ M = 1.989e30 # mass of the central body, this position is assumed to be (0,0) (S
 m1 = 5.972e24 # mass of secondary body 1 (Earth)
 m2 = 6.39e23 # mass of secondary body 2 (Mars)
 
+print(f"Mass Ratio {m2/m1:.4f}")
+
+
+
 # Initial positions (meters) and velocities (meters per second)
 x1 = 1.5e11  # Earth initial x-position (~1 AU)
 y1 = 0
@@ -174,7 +178,7 @@ x2 = 2.28e11 # Mars initial x-position (~1.5 AU)
 y2 = 0
 vx2 = 0 # velocity is purley tangential
 vy2 = np.sqrt(G* M/ x2) # velocity is set to ensure intially ciruclar motion
-
+print(f"Orbital Radius Ratio {x2/x1:.4f}")
 
 # Combine initial conditions into arrays for integrators
 IVP_2body= [x1, y1, vx1, vy1, x2, y2, vx2, vy2 ] # set Two- body intial conditions
@@ -183,7 +187,7 @@ IVP_Mars = [x2, y2, vx2, vy2 ] # set One-body Mars intial conditions
 
 # Time
 dt = (60 ** 2)*24  # time step value (duration of each time step in seconds), initall set to 1 day
-total_time = 5000 # in years 
+total_time = 50 # in years 
 total_time_seconds = total_time * 31556952
 steps = int(total_time_seconds / dt)
 
@@ -253,7 +257,7 @@ plt.legend()
 plt.tight_layout()
 plt.show()'''
 
-# Plot Earh and Mars on the Same Graph
+'''# Plot Earh and Mars on the Same Graph
 plt.figure(figsize=(8, 8))              # square aspect makes it easier to judge the shapes
 
 # Earth
@@ -274,14 +278,14 @@ plt.axis('equal')
 plt.grid(True)
 #plt.legend()
 plt.tight_layout()
-plt.show()
+plt.show()'''
 
 # --------------------------- Result Validation ------------------------------------
 
 #  Plot the Energy Error ( ~ e-14 ) 
 t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
 
-plt.figure(figsize=(10,4))
+'''plt.figure(figsize=(10,4))
 plt.plot(t, (E_2body - E_2body[0]) / abs(E_2body[0]), label='Earth+Mars (2-body)')
 plt.xlabel('Time (years)')
 plt.ylabel('Relative energy error ΔE / E₀')
@@ -300,7 +304,7 @@ plt.title('Angular momentum conservation (2-body)')
 plt.grid(True)
 #plt.legend()
 plt.tight_layout()
-plt.show()
+plt.show()'''
 
 # Plot Orbital Divergence
 diff_Earth = np.hypot(x1s - xE, y1s - yE)
@@ -313,13 +317,45 @@ plt.xlabel("Time (years)")
 plt.ylabel("Position Difference (m)")
 plt.title("Deviation from 1-body orbits due to mutual interaction")
 plt.grid(True)
-#plt.legend()
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Line up the data
+slopeE, interceptE = np.polyfit(t,diff_Earth,1)
+best_fit_lineE = slopeE * t + interceptE
+
+slopeM, interceptM= np.polyfit(t,diff_Mars,1)
+best_fit_lineM = slopeM * t + interceptM
+
+print(f"Earth Slope {slopeE:.4f}")
+print(f"Earth Intercept {interceptE:.4f}")
+print(f"Mars Slope {slopeM:.4f}")
+print(f"Mars Intercept {interceptM:.4f}")
+print(f"Slope Ratio {slopeM/slopeE:.4f}")
+
+adjustedE = diff_Earth - best_fit_lineE
+adjustedM = diff_Mars - best_fit_lineM
+
+maxDeviation = max(adjustedE)
+
+plt.figure(figsize=(10, 4))
+plt.plot(t, diff_Earth - best_fit_lineE, label='Earth orbital deviation (ADJUSTED)')
+plt.plot(t, diff_Mars - best_fit_lineM, label='Mars orbital deviation (ADJUSTED)')
+plt.xlabel("Time (years)")
+plt.ylabel("Position Difference (ADJSUTED) (m)")
+plt.title("Deviation from 1-body orbits due to mutual interaction (ADJUSTED)")
+plt.grid(True)
+plt.legend()
 plt.tight_layout()
 plt.show()
 
 
+
+
+
 # Plot Phase Space Plots 
-plt.figure(figsize=(12, 5))
+'''plt.figure(figsize=(12, 5))
 plt.subplot(1, 2, 1)
 plt.plot(xE, vxE, '--', label='Earth (1-body)', alpha=0.6)
 plt.plot(x1s, vx1s, label='Earth (2-body)', alpha=0.6)
@@ -348,4 +384,4 @@ plt.ylabel('Cross-correlation')
 plt.title('Cross-correlation of orbital deviations: Earth vs Mars')
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+plt.show()'''
