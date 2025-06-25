@@ -1,7 +1,9 @@
 import numpy as np 
 import matplotlib.pyplot as plt
+from scipy.fft import rfft, rfftfreq
 from scipy.stats import pearsonr
 from scipy.signal import correlate
+from scipy.signal import find_peaks
 
 
 # Constants
@@ -156,29 +158,35 @@ def angular_momentum_two_body(x1, y1, vx1, vy1, x2, y2, vx2, vy2, m1, m2):
 
     return L1 + L2
 
-
 # -------------------- Example Usage ----------------------------
 
 # Masses in kilograms 
 M = 1.989e30 # mass of the central body, this position is assumed to be (0,0) (Sun)
-m1 = 5.972e24 # mass of secondary body 1 (Earth)
-m2 = 6.39e23 # mass of secondary body 2 (Mars)
+m1 = 5.972e24 # mass of secondary body 1 (Earth) 5.972e24
+m2 = m1  # mass of secondary body 2 (Mars) 6.39e23 
 
 print(f"Mass Ratio {m2/m1:.4f}")
-
-
 
 # Initial positions (meters) and velocities (meters per second)
 x1 = 1.5e11  # Earth initial x-position (~1 AU)
 y1 = 0
+r1 = np.sqrt(x1**2 + y1 **2)
 vx1 = 0 # velocity is purley tangential
 vy1 = np.sqrt(G * M/ x1) # velocity is set to ensure intially ciruclar motion
 
-x2 = 2.28e11 # Mars initial x-position (~1.5 AU)
+x2 = 10 * x1 # Mars initial x-position (~1.5 AU) 2.28e11
 y2 = 0
+r2 = np.sqrt(x2**2 + y2 **2)
 vx2 = 0 # velocity is purley tangential
 vy2 = np.sqrt(G* M/ x2) # velocity is set to ensure intially ciruclar motion
 print(f"Orbital Radius Ratio {x2/x1:.4f}")
+
+# Orbital Period 
+T_earth_theoretical = np.sqrt((4*np.pi**2 * r1 **3) / (G * M)) /  3.154e+7
+T_mars_theoretical = np.sqrt((4*np.pi**2 * r2 **3) / (G * M)) /  3.154e+7
+
+print(f"Orbital Period Earth {T_earth_theoretical:.4f}")
+print(f"Orbital Period Mars {T_mars_theoretical:.4f}")
 
 # Combine initial conditions into arrays for integrators
 IVP_2body= [x1, y1, vx1, vy1, x2, y2, vx2, vy2 ] # set Two- body intial conditions
@@ -187,7 +195,7 @@ IVP_Mars = [x2, y2, vx2, vy2 ] # set One-body Mars intial conditions
 
 # Time
 dt = (60 ** 2)*24  # time step value (duration of each time step in seconds), initall set to 1 day
-total_time = 50 # in years 
+total_time = 300 # in years 
 total_time_seconds = total_time * 31556952
 steps = int(total_time_seconds / dt)
 
@@ -257,7 +265,8 @@ plt.legend()
 plt.tight_layout()
 plt.show()'''
 
-'''# Plot Earh and Mars on the Same Graph
+
+# Plot Earh and Mars on the Same Graph
 plt.figure(figsize=(8, 8))              # square aspect makes it easier to judge the shapes
 
 # Earth
@@ -278,7 +287,7 @@ plt.axis('equal')
 plt.grid(True)
 #plt.legend()
 plt.tight_layout()
-plt.show()'''
+plt.show()
 
 # --------------------------- Result Validation ------------------------------------
 
@@ -337,11 +346,53 @@ print(f"Slope Ratio {slopeM/slopeE:.4f}")
 adjustedE = diff_Earth - best_fit_lineE
 adjustedM = diff_Mars - best_fit_lineM
 
-maxDeviation = max(adjustedE)
+yf = rfft(adjustedE)
+xf = rfftfreq(len(t),d =(t[1]-t[0]))
+peak_index = np.argmax(np.abs(yf))
+peak_freq = xf[peak_index]
+T_syn = 1 / peak_freq 
+print(f"Estimated synodic period: {T_syn:.2f}")
+
+# Find peaks in the oscillating signal
+peaks, _ = find_peaks(adjustedE, distance=1)  # tweak distance based on your data
+
+# Estimate period between peaks
+peak_times = t[peaks]
+T_syn =  1 * np.mean(np.diff(peak_times))
+print(f"Estimated synodic period: {T_syn:.2f}")
+
+T_mars_analytical_1 = 1 / (1 / T_earth_theoretical + 1 / T_syn)   # if Mars is outer
+T_mars_analytical_2 = 1 / (1 / T_earth_theoretical - 1 / T_syn)  # if Mars is inner
+
+print(f"Possible Mars periods: {T_mars_analytical_1:.2f} years or {T_mars_analytical_2:.2f} years")
+
+dataE = np.fft.rfft(adjustedE)
+dataM = np.fft.rfft(adjustedM)
+
+freq = np.fft.rfftfreq(len(adjustedE))
+
+
+maxDeviationE = max(adjustedE)
+maxDeviationM = max(adjustedM)
+
+earth_peaks, _ = find_peaks(adjustedE)
+mars_peaks, _ = find_peaks(adjustedM)
+
+earth_peaks_time = t[earth_peaks]
+mars_peaks_time = t[mars_peaks]
+
+earth_valley, _ = find_peaks(-adjustedE)
+mars_valley, _ = find_peaks(-adjustedM)
+
+earth_valleys_time = t[earth_valley]
+mars_valleys_time = t[mars_valley]
+
 
 plt.figure(figsize=(10, 4))
 plt.plot(t, diff_Earth - best_fit_lineE, label='Earth orbital deviation (ADJUSTED)')
 plt.plot(t, diff_Mars - best_fit_lineM, label='Mars orbital deviation (ADJUSTED)')
+plt.plot(earth_peaks_time, adjustedE[earth_peaks], "x", label="Earth Peaks")
+plt.plot(earth_valleys_time, adjustedE[earth_valley], "x", label="Earth Valleys")
 plt.xlabel("Time (years)")
 plt.ylabel("Position Difference (ADJSUTED) (m)")
 plt.title("Deviation from 1-body orbits due to mutual interaction (ADJUSTED)")
@@ -350,6 +401,40 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
+# ----- Find Angle between Earth and Mars of Peak Deviation ----------------------- 
+
+  
+# Earth and Mars positions from 2-body sim
+theta_earth = np.mod(np.arctan2(y1s, x1s), 2 * np.pi)
+theta_mars = np.mod(np.arctan2(y2s, x2s), 2 * np.pi)
+
+
+plt.figure(figsize=(10, 4))
+plt.scatter(t,theta_earth, s = 2)
+plt.scatter(t,theta_mars, s = 2)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(10, 4))
+angle_diff = theta_mars - theta_earth
+plt.scatter(t, angle_diff, s=2)
+plt.title("Angular separation: Mars - Earth")
+plt.ylabel("Δθ (rad)")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(10, 4))
+angle_diff = theta_mars - theta_earth
+plt.scatter(t[earth_peaks], angle_diff[earth_peaks], s=4)
+plt.scatter(t[earth_valley], angle_diff[earth_valley], s=4)
+plt.title("Angular separation: Mars - Earth")
+plt.ylabel("Δθ (rad)")
+plt.xlabel("peak/valley times")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
 
 
 
