@@ -163,7 +163,7 @@ def angular_momentum_two_body(x1, y1, vx1, vy1, x2, y2, vx2, vy2, m1, m2):
 # Masses in kilograms 
 M = 1.989e30 # mass of the central body, this position is assumed to be (0,0) (Sun)
 m1 = 5.972e24 # mass of secondary body 1 (Earth) 5.972e24
-m2 = m1  # mass of secondary body 2 (Mars) 6.39e23 
+m2 = 6.39e23  # mass of secondary body 2 (Mars) 6.39e23 
 
 print(f"Mass Ratio {m2/m1:.4f}")
 
@@ -174,7 +174,7 @@ r1 = np.sqrt(x1**2 + y1 **2)
 vx1 = 0 # velocity is purley tangential
 vy1 = np.sqrt(G * M/ x1) # velocity is set to ensure intially ciruclar motion
 
-x2 = 10 * x1 # Mars initial x-position (~1.5 AU) 2.28e11
+x2 = 2.28e11 # Mars initial x-position (~1.5 AU) 2.28e11
 y2 = 0
 r2 = np.sqrt(x2**2 + y2 **2)
 vx2 = 0 # velocity is purley tangential
@@ -270,12 +270,18 @@ plt.show()'''
 plt.figure(figsize=(8, 8))              # square aspect makes it easier to judge the shapes
 
 # Earth
+
 plt.plot(xE, yE,  '--',  label='Earth (1-body)', color='cyan')
 plt.plot(x1s, y1s,      label='Earth (2-body)', color='blue')
+
+
 
 # Mars
 plt.plot(xM, yM,  '--',  label='Mars (1-body)',  color='salmon')
 plt.plot(x2s, y2s,      label='Mars (2-body)',  color='orange')
+
+
+
 
 # Sun at the origin
 plt.scatter(0, 0, color='yellow', edgecolors='black', s=120, zorder=5, label='Sun')
@@ -293,6 +299,19 @@ plt.show()
 
 #  Plot the Energy Error ( ~ e-14 ) 
 t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
+
+# Calculate Periods 
+zero_crossings = (y1s[:-1] < 0) & (y1s[1:] >= 0)
+x_positive = x1s[1:] > 0  # shift by 1 to align with y[1:]
+valid_crossings = zero_crossings & x_positive
+crossing_times = (t[:-1][valid_crossings] + t[1:][valid_crossings]) / 2
+if len(crossing_times) >= 2:
+    orbital_periods = np.diff(crossing_times)
+    T_sim = np.mean(orbital_periods)
+    print(f"Estimated Orbital Period: {T_sim:.6f} years")
+else:
+    print("Not enough crossings to estimate orbital period.")
+
 
 '''plt.figure(figsize=(10,4))
 plt.plot(t, (E_2body - E_2body[0]) / abs(E_2body[0]), label='Earth+Mars (2-body)')
@@ -353,6 +372,13 @@ peak_freq = xf[peak_index]
 T_syn = 1 / peak_freq 
 print(f"Estimated synodic period: {T_syn:.2f}")
 
+plt.figure(figsize=(10, 4))
+plt.plot(xf,np.abs(yf))
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
 # Find peaks in the oscillating signal
 peaks, _ = find_peaks(adjustedE, distance=1)  # tweak distance based on your data
 
@@ -361,8 +387,8 @@ peak_times = t[peaks]
 T_syn =  1 * np.mean(np.diff(peak_times))
 print(f"Estimated synodic period: {T_syn:.2f}")
 
-T_mars_analytical_1 = 1 / (1 / T_earth_theoretical + 1 / T_syn)   # if Mars is outer
-T_mars_analytical_2 = 1 / (1 / T_earth_theoretical - 1 / T_syn)  # if Mars is inner
+T_mars_analytical_1 = 1 / (1 / T_sim + 1 / T_syn)   # if Mars is outer
+T_mars_analytical_2 = 1 / (1 / T_sim - 1 / T_syn)  # if Mars is inner
 
 print(f"Possible Mars periods: {T_mars_analytical_1:.2f} years or {T_mars_analytical_2:.2f} years")
 
@@ -370,7 +396,6 @@ dataE = np.fft.rfft(adjustedE)
 dataM = np.fft.rfft(adjustedM)
 
 freq = np.fft.rfftfreq(len(adjustedE))
-
 
 maxDeviationE = max(adjustedE)
 maxDeviationM = max(adjustedM)
@@ -386,7 +411,6 @@ mars_valley, _ = find_peaks(-adjustedM)
 
 earth_valleys_time = t[earth_valley]
 mars_valleys_time = t[mars_valley]
-
 
 plt.figure(figsize=(10, 4))
 plt.plot(t, diff_Earth - best_fit_lineE, label='Earth orbital deviation (ADJUSTED)')
