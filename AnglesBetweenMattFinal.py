@@ -335,6 +335,10 @@ yM_pts = y2s[all_extrema_indices]
 angles_rad = []
 angles_deg = []
 
+orientation_degs = []
+orientation_rads = []
+
+
 for i in all_extrema_indices:
     #solves for dot product of vectors over product of magnitude of vectors (inverse Cosine definition)
     # Earth's velocity vector
@@ -358,31 +362,38 @@ for i in all_extrema_indices:
     # Normalize direction matters (angle is sensitive to direction)
     dot_product = np.dot(vE, r_EM) #dot product of vectors
     norm_product = np.linalg.norm(vE) * np.linalg.norm(r_EM) #norm is the function for magnitude in numpy
-    
-    # solve for cos
-    cos_theta = np.clip(dot_product / norm_product) 
 
-    # Compute angle in radians and degrees
-    theta_rad = np.arccos(cos_theta)
-    theta_deg = np.degrees(theta_rad)
+   # Orientation of Earth→Mars vector (If Earth is at (1 AU, 0) and Mars is at (0, 1.5 AU), the vector points straight up, and the orientation is 90°.)
+    orientation_rad = np.arctan2(y2s[i]-y1s[i], x2s[i]-x1s[i])
+    orientation_deg = np.degrees(orientation_rad)
 
-    angles_rad.append(theta_rad)
-    angles_deg.append(theta_deg)
+    orientation_rads.append(orientation_rad)
+    orientation_degs.append(orientation_deg)
     
+    # Angle between vectors
+    angle_rad = np.arccos(np.clip(dot_product / norm_product, -1.0, 1.0))
+    angle_deg = np.degrees(angle_rad)
+
+    angles_rad.append(angle_rad)
+    angles_deg.append(angle_deg)
+
     print(f"Index: {i}")
     print(f"  Time (years): {t[i]:.4f}")
     print(f"  Earth Position: ({x1s[i]:.3e}, {y1s[i]:.3e})")
     print(f"  Mars Position:  ({x2s[i]:.3e}, {y2s[i]:.3e})")
     print(f"  Velocity Vector (Earth): {vE}")
     print(f"  Earth→Mars Vector:       {r_EM}")
-    print(f"  Angle (degrees): {theta_deg:.4f}")
+    print(f"  Angle Between Vectors (degrees): {angle_deg:.4f}")
+    print(f"  Orientation Between Earth and Mars (degrees): {orientation_deg:.4f}")
     print("-" * 80)
+
 ##########plotting the angles
 # Time at each deviation point
 t_extrema = t[all_extrema_indices]
 
 plt.figure(figsize=(10, 5))
 plt.scatter(t_extrema, angles_rad, marker='o', linestyle='-', color='purple')
+plt.scatter(t_extrema, orientation_rads, marker='o', linestyle='-', color='blue')
 plt.xlabel('Time (years)')
 plt.ylabel('Angle (rad)')
 plt.title('Angle between Earth velocity vector and Earth–Mars line at deviations')
