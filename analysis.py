@@ -6,7 +6,6 @@ from scipy.stats import pearsonr
 from scipy.signal import correlate
 from scipy.signal import find_peaks
 
-
 # Constants
 G = 6.67430e-11 # gravitiaional constant in m^3 kg^-1 s^-2
 
@@ -155,8 +154,8 @@ IVP_Earth= [x1, y1, vx1, vy1] # set One-body Earth intial conditions
 IVP_Mars = [x2, y2, vx2, vy2 ] # set One-body Mars intial conditions
 
 # Time
-dt = (60 ** 2)*24  # time step value (duration of each time step in seconds), initall set to 1 day
-total_time = 300 # in years 
+dt = (60 ** 2) * 24  # time step value (duration of each time step in seconds), initall set to 1 day
+total_time = 1000 # in years 
 total_time_seconds = total_time * 31556952
 steps = int(total_time_seconds / dt)
 
@@ -206,11 +205,25 @@ theta_rad = np.arctan2(cross, dot)
 theta_deg = np.degrees(theta_rad)
 
 # Find peaks in the oscillating signal
-peaks, _ = find_peaks(adjustedE, distance=1)  # tweak distance based on your data
 
-# Estimate period between peaks
+# --- Find valleys (local minima) ---
+
+
+maxDeviationE = max(adjustedE)
+maxDeviationM = max(adjustedM)
+
+
+
+
+
+
+peaks, _ = find_peaks(adjustedE, height = 0.99 * maxDeviationE, distance=1)  # tweak distance based on your data
+valleys, _ = find_peaks(-adjustedE,  height = -0.99 * maxDeviationE, distance=1)
 peak_times = t[peaks]
-T_syn =  2 * np.mean(np.diff(peak_times))
+valley_times = t[valleys]
+T_syn =  2* np.diff(peak_times).mean()
+
+
 print(f"Estimated synodic period: {T_syn:.2f}")
 
 # Calculate the Simulation Period of Earth
@@ -241,15 +254,7 @@ else:
 # Calculate the Theoretical Mars Period 
 T_M = 1 / (1/T_sim - 1/T_syn)
 print(f"Calculated Mars Orbital Period: {T_M:.3f} years")
-
-
 print(f"Difference Between Simulated and Calculated Mars Orbital Period: {abs(T_M - T_simM):.3f} years")
-
-
-
-
-
-
 
 # INTERACTIVE PLOT
 # ==== Create figure and 3 vertically stacked plots ====
@@ -283,13 +288,29 @@ ax_deviation.grid(True)
 #ax_deviation.legend()
 
 # === Bottom: Angle Between Velocity and Mars Position ===
-angle_line, = ax_angle.plot(t, theta_deg, label='Angle (deg)')
+'''angle_line, = ax_angle.plot(t, theta_deg, label='Angle (deg)')
 time_marker_angle = ax_angle.axvline(0, color='k', linestyle='--')
 ax_angle.set_xlabel("Time (years)")
 ax_angle.set_ylabel("Signed Angle (deg)")
 ax_angle.set_title("Angle Between Earth's Velocity and Mars Position")
 ax_angle.grid(True)
-#ax_angle.legend()
+#ax_angle.legend()'''
+
+# --- Get times and angles at peaks and valleys ---
+peak_times = t[peaks]
+valley_times = t[valleys]
+peak_angles = theta_deg[peaks]
+valley_angles = theta_deg[valleys]
+
+
+angle_scatter = ax_angle.scatter(peak_times, peak_angles, color='g', label='Angle @ Peaks')
+valley_scatter = ax_angle.scatter(valley_times, valley_angles, color='m', label='Angle @ Valleys')
+time_marker_angle = ax_angle.axvline(0, color='k', linestyle='--')
+ax_angle.set_xlabel("Time (years)")
+ax_angle.set_ylabel("Signed Angle (deg)")
+ax_angle.set_title("Angle Between Earth's Velocity and Mars Position")
+ax_angle.grid(True)
+#ax_angle.legend()'''
 
 # === Slider and TextBox ===
 slider_ax = plt.axes([0.2, 0.12, 0.6, 0.03])

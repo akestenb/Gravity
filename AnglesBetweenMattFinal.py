@@ -393,7 +393,7 @@ t_extrema = t[all_extrema_indices]
 
 plt.figure(figsize=(10, 5))
 plt.scatter(t_extrema, angles_rad, marker='o', linestyle='-', color='purple')
-plt.scatter(t_extrema, orientation_rads, marker='o', linestyle='-', color='blue')
+#plt.scatter(t_extrema, orientation_rads, marker='o', linestyle='-', color='blue')
 plt.xlabel('Time (years)')
 plt.ylabel('Angle (rad)')
 plt.title('Angle between Earth velocity vector and Earth–Mars line at deviations')
