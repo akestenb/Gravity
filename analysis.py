@@ -1,3 +1,4 @@
+
 import numpy as np 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, TextBox
@@ -155,7 +156,7 @@ IVP_Mars = [x2, y2, vx2, vy2 ] # set One-body Mars intial conditions
 
 # Time
 dt = (60 ** 2) * 24  # time step value (duration of each time step in seconds), initall set to 1 day
-total_time = 1000 # in years 
+total_time = 500 # in years 
 total_time_seconds = total_time * 31556952
 steps = int(total_time_seconds / dt)
 
@@ -195,8 +196,8 @@ dx = x2s - x1s
 dy = y2s - y1s
 
 # Dot and cross products
-dot = vxE * dx + vyE * dy
-cross = vxE * dy - vyE * dx  # scalar 2D cross product
+dot = (vxE * dx) + (vyE * dy)
+cross =(vxE * dy) - (vyE * dx)  # scalar 2D cross product
 
 # Angle in radians (signed)
 theta_rad = np.arctan2(cross, dot)
@@ -207,24 +208,57 @@ theta_deg = np.degrees(theta_rad)
 # Find peaks in the oscillating signal
 
 # --- Find valleys (local minima) ---
-
-
 maxDeviationE = max(adjustedE)
+minDeviationE = min(adjustedE)
 maxDeviationM = max(adjustedM)
 
+peaks, _ = find_peaks(adjustedE)  # tweak distance based on your data
+valleys, _ = find_peaks(-adjustedE)
 
-
-
-
-
-peaks, _ = find_peaks(adjustedE, height = 0.99 * maxDeviationE, distance=1)  # tweak distance based on your data
-valleys, _ = find_peaks(-adjustedE,  height = -0.99 * maxDeviationE, distance=1)
 peak_times = t[peaks]
 valley_times = t[valleys]
 T_syn =  2* np.diff(peak_times).mean()
-
-
 print(f"Estimated synodic period: {T_syn:.2f}")
+ 
+found = False
+for i in range(len(peaks)):
+    for j in range(i+1, len(peaks)):
+        # Check if peak amplitudes are close within 1%
+        if adjustedE[peaks[i]] >= 0.99 * maxDeviationE and abs(adjustedE[peaks[i]] - adjustedE[peaks[j]]) < 0.01 * max(adjustedE[peaks[i]], adjustedE[peaks[j]]):
+            # Found a repeat cycle
+            cycle_time = peak_times[j] - peak_times[i]
+            print(f"Cycle detected between peaks {i} and {j}")
+            print(f"Time between peaks: {cycle_time:.3f} years")
+            found = True
+            first_cycle_indices = (i, j)
+            break
+    if found:
+        break
+
+sig_peaks = peaks[i::(j-i)]
+
+found = False
+for m in range(len(valleys)):
+    for n in range(m+1, len(valleys)):
+        # Check if peak amplitudes are close within 1%
+       # print(f"Checking valley pair m={m}, n={n}")
+        # print(f"Values: adjustedE[valleys[m]]={adjustedE[valleys[m]]}, adjustedE[valleys[n]]={adjustedE[valleys[n]]}")
+        if adjustedE[valleys[m]] <= 0.99 * minDeviationE and \
+            abs(adjustedE[valleys[m]] - adjustedE[valleys[n]]) < 0.01 * max(abs(adjustedE[valleys[m]]),abs(adjustedE[valleys[n]])):
+            # Found a repeat cycle
+            cycle_time_valley = valley_times[n] - valley_times[m]
+            print(f"Cycle detected between valleys {m} and {n}")
+            print(f"Time between valleys: {cycle_time_valley:.3f} years")
+            found = True
+            first_cycle_indices_valley = (m, n)
+            break
+    if found:
+        break
+
+sig_valleys = valleys[m::(n-m)]
+
+sig_peak_times = t[sig_peaks]
+sig_valley_times = t[sig_valleys]
 
 # Calculate the Simulation Period of Earth
 zero_crossings = (y1s[:-1] < 0) & (y1s[1:] >= 0)
@@ -285,6 +319,12 @@ ax_deviation.set_xlabel("Time (years)")
 ax_deviation.set_ylabel("Position Difference (m)")
 ax_deviation.set_title("Orbital Deviations from 1-body Orbits")
 ax_deviation.grid(True)
+peak_time_i, peak_time_j = peak_times[i], peak_times[j]
+peak_amp_i, peak_amp_j = adjustedE[peaks[i]], adjustedE[peaks[j]]
+ax_deviation.scatter([peak_time_i, peak_time_j], [peak_amp_i, peak_amp_j], color='red', s=100, marker='X', label='Cycle Peaks')
+valley_time_m, valley_time_n = valley_times[m], valley_times[n]
+valley_amp_m, valley_amp_n = adjustedE[valleys[m]], adjustedE[valleys[n]]
+ax_deviation.scatter([valley_time_m, valley_time_n], [valley_amp_m, valley_amp_n], color='red', s=100, marker='X', label='Cycle Peaks')
 #ax_deviation.legend()
 
 # === Bottom: Angle Between Velocity and Mars Position ===
@@ -297,10 +337,10 @@ ax_angle.grid(True)
 #ax_angle.legend()'''
 
 # --- Get times and angles at peaks and valleys ---
-peak_times = t[peaks]
-valley_times = t[valleys]
-peak_angles = theta_deg[peaks]
-valley_angles = theta_deg[valleys]
+peak_times = t[sig_peaks]
+valley_times = t[sig_valleys]
+peak_angles = theta_deg[sig_peaks]
+valley_angles = theta_deg[sig_valleys]
 
 
 angle_scatter = ax_angle.scatter(peak_times, peak_angles, color='g', label='Angle @ Peaks')
