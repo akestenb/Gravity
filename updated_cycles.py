@@ -1,6 +1,7 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, TextBox
+from scipy.ndimage import gaussian_filter1d
 from scipy.fft import rfft, rfftfreq
 from scipy.stats import pearsonr
 from scipy.signal import correlate
@@ -215,23 +216,22 @@ theta_rad = np.arctan2(cross, dot)
 # Convert to degrees
 theta_deg = np.degrees(theta_rad)
 
-# Find peaks in the oscillating signal
-
-# --- Find valleys (local minima) ---
-maxDeviationE = max(adjustedE)
-minDeviationE = min(adjustedE)
-maxDeviationM = max(adjustedM)
-
-peaks, _ = find_peaks(adjustedE)  # tweak distance based on your data
-valleys, _ = find_peaks(-adjustedE)
-
+# Cycle Time 
 yf = rfft(adjustedE)
 xf = rfftfreq(len(t),d =(t[1]-t[0]))
-peak_index = np.argmax(np.abs(yf))
-peak_freq = xf[peak_index]
-T_syn = 1 / peak_freq 
-print(f"Estimated synodic period: {T_syn:.2f}")
+peaks_fft, _ = find_peaks(np.abs(yf))
+cuttoff = 1
+peak_freq_fft = xf[peaks_fft]
+peak_freq_fft_low = []
+peaks_fft_low = []
 
+for j in range(len(peak_freq_fft)):
+    if peak_freq_fft[j]< cuttoff:
+        peak_freq_fft_low.append(peak_freq_fft[j])
+        peaks_fft_low.append(peaks_fft[j])
+
+for i in range (len(peak_freq_fft_low)):
+    print(f"Freqeuncy = {peak_freq_fft_low[i]:.4f} Hz,  Amplitude = {np.abs(yf[peaks_fft_low[i]]):.4f}, Period = {1/peak_freq_fft_low[i]:.4f} years")
 
 plt.figure(figsize=(10, 4))
 plt.plot(xf,np.abs(yf))
@@ -240,31 +240,79 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
+
+
+
+# --- Find valleys (local minima) ---
+maxDeviationE = max(adjustedE)
+minDeviationE = min(adjustedE)
+maxDeviationM = max(adjustedM)
+
+peaks, _ = find_peaks(adjustedE)
+valleys, _ = find_peaks(-adjustedE)
+
+sig_peaks1 = []
+
+# We start from 1 and end at len(peaks) - 1 to avoid out-of-bounds
+for i in range(1, len(peaks) - 1):
+        prev_peak = peaks[i - 1]
+        curr_peak = peaks[i]
+        next_peak = peaks[i + 1]
+        
+        if adjustedE[curr_peak] > adjustedE[prev_peak] and adjustedE[curr_peak] > adjustedE[next_peak]:
+         sig_peaks1.append(curr_peak)
+
+sig_peaks2 = []
+
+for j in range(1,len(sig_peaks1) - 1) :
+    prev_peak = sig_peaks1[j -1]
+    curr_peak = sig_peaks1[j]
+    next_peak = sig_peaks1[j+1]
+
+    if adjustedE[curr_peak] > adjustedE[prev_peak] and adjustedE[curr_peak] > adjustedE[next_peak]:
+        sig_peaks2.append(curr_peak)
+
+sig_peaks3 = []
+
+for k in range(1,len(sig_peaks2) - 1) :
+    prev_peak = sig_peaks2[k -1]
+    curr_peak = sig_peaks2[k]
+    next_peak = sig_peaks2[k+1]
+
+    if adjustedE[curr_peak] > adjustedE[prev_peak] and adjustedE[curr_peak] > adjustedE[next_peak]:
+        sig_peaks3.append(curr_peak)
+
+sig_peaks = sig_peaks2
+
+
+
+'''sigma = 100
+smoothedE = gaussian_filter1d(adjustedE, sigma = sigma)
+
+peaks, _ = find_peaks(smoothedE, distance = 500)
 peak_times = t[peaks]
-valley_times = t[valleys]
 
-found = False
-for i in range(len(peaks)):
-    for j in range(i+1, len(peaks)):
-        cycle_time = 3
-        # Check if peak amplitudes are close within 1%
-        if adjustedE[peaks[i]] >= 0.99 * maxDeviationE and abs(adjustedE[peaks[i]] - adjustedE[peaks[j]]) < 0.01 * max(adjustedE[peaks[i]], adjustedE[peaks[j]]):
-            # Found a repeat cycle
-            cycle_time = peak_times[j] - peak_times[i]
-            print(f"Cycle detected between peaks {i} and {j}")
-            print(f"Time between peaks: {cycle_time:.3f} years")
-            found = True
-            first_cycle_indices = (i, j)
-            break
+cycle_times = np.diff(peak_times)
+mean_cycle_time = np.mean(cycle_times)
+
+print(f"Estimated synodic cycle time: {mean_cycle_time:.2f} years")
+
+# Plot the result
+plt.figure(figsize=(12,5))
+plt.plot(t, adjustedE, label='Original Earth Deviation', alpha=0.5)
+plt.plot(t, smoothedE, label='Gaussian Smoothed', linewidth=2)
+plt.scatter(peak_times, smoothedE[peaks], color='red', label='Detected Peaks')
+plt.xlabel('Time (years)')
+plt.ylabel('Deviation (m)')
+plt.legend()
+plt.show()
+'''
 
 
 
 
-cycle_distance = int(cycle_time / t[1] - t[0]) / 2
-print (f"Time Step Spacing: {cycle_distance:.3f} times steps")
 
-sig_peaks, _ = find_peaks (adjustedE, height = 0.95 * maxDeviationE, distance = cycle_distance)
-sig_valleys,_ = find_peaks (-adjustedE, height = abs(0.95 * minDeviationE), distance = cycle_distance)
+
 
 
 # INTERACTIVE PLOT
@@ -301,22 +349,22 @@ ax_deviation.set_title("Orbital Deviations from 1-body Orbits")
 
 # --- Get times and angles at peaks and valleys ---
 peak_times = t[sig_peaks]
-valley_times = t[sig_valleys]
+##valley_times = t[sig_valleys]
 peak_angles = theta_deg[sig_peaks]
-valley_angles = theta_deg[sig_valleys]
+#valley_angles = theta_deg[sig_valleys]
 
 ax_deviation.plot(peak_times, adjustedE[sig_peaks], 'gx', label='Peaks', markersize=8, zorder=5)  # Green 'x' for peaks
-ax_deviation.plot(valley_times, adjustedE[sig_valleys], 'rx', label='Valleys', markersize=8, zorder=5)  # Red 'x' for valleys
+#ax_deviation.plot(valley_times, adjustedE[sig_valleys], 'rx', label='Valleys', markersize=8, zorder=5)  # Red 'x' for valleys
 ax_deviation.grid(True)
 
 angle_scatter = ax_angle.scatter(peak_times, peak_angles, color='g', label='Angle @ Peaks')
-valley_scatter = ax_angle.scatter(valley_times, valley_angles, color='m', label='Angle @ Valleys')
+#valley_scatter = ax_angle.scatter(valley_times, valley_angles, color='m', label='Angle @ Valleys')
 time_marker_angle = ax_angle.axvline(0, color='k', linestyle='--')
 ax_angle.set_xlabel("Time (years)")
 ax_angle.set_ylabel("Signed Angle (deg)")
 ax_angle.set_title("Angle Between Earth's Velocity and Mars Position")
 ax_angle.grid(True)
-#ax_angle.legend()'''
+#ax_angle.legend()
 
 # === Slider and TextBox ===
 slider_ax = plt.axes([0.2, 0.12, 0.6, 0.03])
