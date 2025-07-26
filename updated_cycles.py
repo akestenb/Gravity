@@ -55,7 +55,8 @@ def symplectic_integrate_two_body(IVP, dt, steps, M, m1, m2):
    
     solution = np.zeros((steps,8)) # initialze array of solutions, this should be the size of the intial conditons by the number of time steps 
     solution[0] = IVP # the first time step soltuion is set to the initial values
-
+    accelerations = np.zeros((steps,4))
+    accelerations[0] = [0,0,0,0]
     for i in range (1,steps):
         # First partial position update with coefficient c[0]
         x1 += c[0] * dt * vx1
@@ -83,8 +84,9 @@ def symplectic_integrate_two_body(IVP, dt, steps, M, m1, m2):
 
        # Save the positions and velocities at this timestep
         solution[i] = [x1, y1, vx1, vy1, x2, y2, vx2, vy2]
+        accelerations[i] = [ax1,ay1,ax2,ay2]
 
-    return solution
+    return solution, accelerations
 
 # Symplectic integrator for a single orbiting body around a central mass
 def symplectic_integrate_one_body(IVP, dt, steps, M, m):
@@ -132,24 +134,34 @@ m2 = 6.39e23  # mass of secondary body 2 (Mars) 6.39e23
 # Initial positions (meters) and velocities (meters per second)
 
 angleE = 0 * (np.pi/180)
-
 rad1 = 1.5e11
 x1 = rad1 * np.cos(angleE)  # Earth initial x-position (~1 AU)
 y1 = rad1 * np.sin(angleE)
 
+'''x1 = 149999210088.4012
+y1 = 94454630.1145
+rad1 = np.hypot(x1,y1)
+angleE = np.arctan2(y1,x1)
+'''
 r1 = np.sqrt(x1**2 + y1 **2)
-velE =  np.sqrt(abs(G * M/ rad1))
+velE =  np.sqrt(abs(G * M/ r1))
 
 vx1 = velE * -np.sin(angleE) # velocity is purley tangential
 vy1 = velE * np.cos(angleE) # velocity is set to ensure intially ciruclar motion
 
 
-angleM = 0 * (np.pi/180)
-
+angleM = 52 * (np.pi/180)
 rad2 = 2.28e11
+
 x2 = rad2*np.cos(angleM)
 y2 = rad2*np.sin(angleM)
 
+'''x2 = 141982228916.6104
+y2 =  178395210169.4843
+rad2 = np.hypot(x2,y2)
+
+angleM = 51 * np.arctan2(y2,x2)
+'''
 r2 = np.sqrt(x2**2 + y2 **2)
 velM = np.sqrt(abs(G * M/rad2))
 
@@ -166,13 +178,13 @@ IVP_Earth= [x1, y1, vx1, vy1] # set One-body Earth intial conditions
 IVP_Mars = [x2, y2, vx2, vy2 ] # set One-body Mars intial conditions
 
 # Time
-dt = (60 ** 2) * 24  # time step value (duration of each time step in seconds), initall set to 1 day
-total_time = 500 # in years 
+dt = (60 ** 2) * 12 # time step value (duration of each time step in seconds), initall set to 1 day
+total_time = 600 # in years 
 total_time_seconds = total_time * 31556952
 steps = int(total_time_seconds / dt)
 
 # Run the simulations
-sol_2body = symplectic_integrate_two_body(IVP_2body, dt, steps, M, m1, m2)
+sol_2body, acc_2body = symplectic_integrate_two_body(IVP_2body, dt, steps, M, m1, m2)
 sol_Earth = symplectic_integrate_one_body(IVP_Earth, dt, steps, M, m1)
 sol_Mars = symplectic_integrate_one_body(IVP_Mars, dt, steps, M, m2)
 
@@ -181,15 +193,29 @@ sol_Mars = symplectic_integrate_one_body(IVP_Mars, dt, steps, M, m2)
 # Extract Positions for plotting
 x1s, y1s, vx1s, vy1s = sol_2body[:, 0], sol_2body[:, 1], sol_2body[:, 2], sol_2body[:, 3] # two body Earth 
 x2s, y2s, vx2s, vy2s = sol_2body[:, 4], sol_2body[:, 5], sol_2body[:, 6], sol_2body[:, 7] # two body Mars
+ax1, ay1, ax2, ay2 = acc_2body[:,0],acc_2body[:,1],acc_2body[:,2],acc_2body[:,3]
+
 
 xE, yE, vxE, vyE = sol_Earth[:,0], sol_Earth[:,1], sol_Earth[:,2], sol_Earth[:,3] # one body Earth
 xM, yM, vxM, vyM = sol_Mars[:,0], sol_Mars[:,1], sol_Mars[:,2], sol_Mars[:,3]  # one body Mars
+
 
 # Plot Orbital Divergence
 diff_Earth = np.hypot(x1s - xE, y1s - yE)
 diff_Mars =  np.hypot(x2s - xM, y2s - yM)
 
 t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
+
+plt.figure(figsize=(10, 4))
+plt.plot(t, np.hypot(ax1,ay1), label = 'Earth')
+plt.plot(t, np.hypot(ax2,ay2), label = 'Mars')
+plt.xlabel('Time (years)')
+plt.ylabel('Acceleration Magnitude (m/s²)')
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
 
 # Line up the data
 slopeE, interceptE = np.polyfit(t,diff_Earth,1)
@@ -216,6 +242,21 @@ theta_rad = np.arctan2(cross, dot)
 # Convert to degrees
 theta_deg = np.degrees(theta_rad)
 
+angle_ahead = np.rad2deg(np.arctan2(y2s,x2s) - np.arctan2(y1s,x1s))
+
+
+
+'''for k in range(len(adjustedE)):
+    if angle_ahead[k] > 51 and angle_ahead[k] < 52 and x1s[k] > 0 and y1s[k] < 100000000 and y1s[k] > -100000000 :
+        earth_pos_x= x1s[k]
+        earth_pos_y = y1s[k]
+        mars_pos_x = x2s[k]
+        mars_pos_y = y2s[k]
+        stop_time = t[k]
+        print(f"Earth Postion = {earth_pos_x:.4f}, {earth_pos_y:.4f}, Mars Postion = {mars_pos_x:.4f}, {mars_pos_y:.4f}, Stop time = {stop_time:.4f}" )
+        break'''
+    
+
 # Cycle Time 
 yf = rfft(adjustedE)
 xf = rfftfreq(len(t),d =(t[1]-t[0]))
@@ -236,7 +277,7 @@ for i in range (len(peak_freq_fft_low)):
 plt.figure(figsize=(10, 4))
 plt.plot(xf,np.abs(yf))
 plt.grid(True)
-plt.legend()
+#plt.legend()
 plt.tight_layout()
 plt.show()
 

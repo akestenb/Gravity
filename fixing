@@ -128,7 +128,6 @@ def symplectic_integrate_one_body(IVP, dt, steps, M, m):
 
     return solution
 
-
 # -------------------- Example Usage ----------------------------
 
 # Masses in kilograms 
@@ -139,7 +138,7 @@ m2 = 6.39e23  # mass of secondary body 2 (Mars) 6.39e23
 
 # Initial positions (meters) and velocities (meters per second)
 
-angleE = 0 * (np.pi/180)
+angleE = -90 * (np.pi/180)
 rad1 = 1.5e11
 
 x1 = rad1 * np.cos(angleE)  # Earth initial x-position (~1 AU)
@@ -150,7 +149,7 @@ velE =  np.sqrt(abs(G * M/ rad1))
 vx1 = velE * -np.sin(angleE) # velocity is purley tangential
 vy1 = velE * np.cos(angleE) # velocity is set to ensure intially ciruclar motion
 
-angleM = 52 * (np.pi/180)
+angleM = 0 * (np.pi/180)
 rad2 = 2.28e11
 
 x2 = rad2*np.cos(angleM)
@@ -178,6 +177,8 @@ steps = int(total_time_seconds / dt)
 orbital_period_earth = 2* np.pi* np.sqrt((rad1**3)/(G * M))
 delay_time = 0.25 * orbital_period_earth
 delay_step = int(delay_time/dt)
+print(f"Delay Time: {delay_time/31556952:.4f}") 
+
 
 # Run the simulations
 sol_2body, acc_2body = symplectic_integrate_two_body(IVP_2body, dt, steps, M, m1, m2, delay_step)
@@ -196,8 +197,12 @@ xE, yE, vxE, vyE = sol_Earth[:,0], sol_Earth[:,1], sol_Earth[:,2], sol_Earth[:,3
 xM, yM, vxM, vyM = sol_Mars[:,0], sol_Mars[:,1], sol_Mars[:,2], sol_Mars[:,3]  # one body Mars
 
 
+
+
 # Plot Orbital Divergence
 diff_Earth = np.hypot(x1s - xE, y1s - yE)
+diff_Earth_x = x1s - xE
+diff_Earth_y = y1s - yE
 diff_Mars =  np.hypot(x2s - xM, y2s - yM)
 
 t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
@@ -304,14 +309,31 @@ plt.subplots_adjust(bottom=0.25, hspace=0.4)
 
 # === Top: Orbit Plot ===
 ax_orbit.plot(x1s, y1s, label='Earth (2-body)', alpha=0.6)
+#ax_orbit.plot(xE,yE, label = 'Earth (1_body)', alpha = 0.6)
 ax_orbit.plot(x2s, y2s, label='Mars (2-body)', alpha=0.6)
 ax_orbit.plot(0, 0, 'yo', label='Sun')
 earth_marker, = ax_orbit.plot([], [], 'bo', markersize=8, label='Earth')
+#earth_expected ,= ax_orbit.plot([], [], 'go', markersize=8, label='EarthE')
 mars_marker, = ax_orbit.plot([], [], 'ro', markersize=8, label='Mars')
+
+# Start with zero-length arrow, from 2-body Earth to ideal orbit
+vector = ax_orbit.quiver(
+    x1s[0], y1s[0],           # position of Earth (2-body sim)
+    xE[0] - x1s[0],           # x component of deviation
+    yE[0] - y1s[0],           # y component of deviation
+    angles='xy',
+    scale_units='xy',
+    scale=0.00001,   
+    width = 0.01 ,           # adjust scale as needed (try 1e9 to 1e11)
+    color='green',
+    label='Deviation Vector'
+)
+
 ax_orbit.set_aspect('equal')
 max_range = max(np.max(np.abs(x1s)), np.max(np.abs(x2s)))
 ax_orbit.set_xlim(-1.2 * max_range, 1.2 * max_range)
 ax_orbit.set_ylim(-1.2 * max_range, 1.2 * max_range)
+ax_orbit.quiver(0, 0, 1e9, 1e9, angles='xy', scale_units='xy', scale=1, color='green')
 ax_orbit.set_xlabel("x position (m)")
 ax_orbit.set_ylabel("y position (m)")
 ax_orbit.set_title(f"Planetary Orbits E: {angleE * 180/np.pi :2f} M: {angleM * 180/np.pi :2f}")
@@ -357,11 +379,24 @@ time_text = TextBox(text_ax, '', initial="0.00")
 
 # === Update Function ===
 def update(val):
+    global vector
     idx = min(int(val / (t[1] - t[0])), len(x1s) - 1)
 
-    # Update orbit markers
     earth_marker.set_data([x1s[idx]], [y1s[idx]])
     mars_marker.set_data([x2s[idx]], [y2s[idx]])
+
+    dx_vec = xE[idx] - x1s[idx]
+    dy_vec = yE[idx] - y1s[idx]
+    vector.set_offsets([x1s[idx], y1s[idx]])  # tail of the arrow
+    vector.set_UVC(dx_vec, dy_vec)           # direction and magnitude
+    
+
+    # Update time marker and text
+    time_marker_dev.set_xdata([val])
+    time_marker_angle.set_xdata([val])
+    time_text.set_val(f"{val:.2f}")
+
+    fig.canvas.draw_idle()
 
     # Update time markers on deviation and angle plots
     time_marker_dev.set_xdata([val])
