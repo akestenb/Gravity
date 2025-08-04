@@ -102,6 +102,8 @@ def symplectic_integrate_one_body(IVP, dt, steps, M, m):
 
     solution = np.zeros((steps,4)) # initialze array of solutions, this should be the size of the intial conditons by the number of time steps 
     solution[0] = IVP # the first time step soltuion is set to the initial values
+    accelerations = np.zeros((steps,2))
+    accelerations[0] = [0,0]
 
     for i in range (1,steps):
 
@@ -125,8 +127,9 @@ def symplectic_integrate_one_body(IVP, dt, steps, M, m):
            
         # stoe the solution at the current time step
         solution[i] = [x, y, vx, vy]
+        accelerations[i] = [ax,ay]
 
-    return solution
+    return solution, accelerations
 
 angle_guess_lines = []
 
@@ -157,6 +160,16 @@ def draw_user_angle(theta_deg_input):
         angle_guess_lines.append(line)
 
     fig.canvas.draw_idle()
+
+def draw_acceleration(diff_acc_x, diff_acc_y,xE, yE):
+    idx = min(int(time_slider.val / (t[1] - t[0])), len(x1s) - 1)
+    dx, dy = diff_acc_x[idx], diff_acc_y[idx]
+    ex, ey = x1s[idx], y1s[idx]
+    length = 1
+    x_end = dx * length
+    y_end = dy * length
+    line, = ax_orbit.plot([ex, x_end], [ey, y_end], 'm', linewidth=1)
+
 
 # -------------------- Example Usage ----------------------------
 
@@ -209,8 +222,8 @@ delay_step = int(delay_time/dt)
 
 # Run the simulations
 sol_2body, acc_2body = symplectic_integrate_two_body(IVP_2body, dt, steps, M, m1, m2, delay_step)
-sol_Earth = symplectic_integrate_one_body(IVP_Earth, dt, steps, M, m1)
-sol_Mars = symplectic_integrate_one_body(IVP_Mars, dt, steps, M, m2)
+sol_Earth, acc_1bodyE = symplectic_integrate_one_body(IVP_Earth, dt, steps, M, m1)
+sol_Mars, acc_1bodyM = symplectic_integrate_one_body(IVP_Mars, dt, steps, M, m2)
 
 # Plot Orbits (includes graviaitional relationship between the two secondary bodies)
 
@@ -221,10 +234,12 @@ ax1, ay1, ax2, ay2 = acc_2body[:,0],acc_2body[:,1],acc_2body[:,2],acc_2body[:,3]
 
 xE, yE, vxE, vyE = sol_Earth[:,0], sol_Earth[:,1], sol_Earth[:,2], sol_Earth[:,3] # one body Earth
 xM, yM, vxM, vyM = sol_Mars[:,0], sol_Mars[:,1], sol_Mars[:,2], sol_Mars[:,3]  # one body Mars
+axE, ayE = acc_1bodyE[:,0],acc_1bodyE[:,1]
 
 # Plot Orbital Divergence
 diff_Earth = np.hypot(x1s - xE, y1s - yE)
 diff_Mars =  np.hypot(x2s - xM, y2s - yM)
+diff_acc_x, diff_acc_y = axE - ax1, ayE- ay1
 
 t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
 
@@ -256,6 +271,9 @@ theta_deg = np.degrees(theta_rad)
 angle_ahead = np.rad2deg(np.arctan2(y2s,x2s) - np.arctan2(y1s,x1s))
 
 
+
+
+
 # Cycle Time 
 yf = rfft(adjustedE)
 xf = rfftfreq(len(t),d =(t[1]-t[0]))
@@ -273,6 +291,23 @@ for j in range(len(peak_freq_fft)):
 for i in range (len(peak_freq_fft_low)):
     print(f"Freqeuncy = {peak_freq_fft_low[i]:.4f} Hz,  Amplitude = {np.abs(yf[peaks_fft_low[i]]):.4f}, Period = {1/peak_freq_fft_low[i]:.4f} years")
 
+cutoff = 1.0  # in Hz (1/year for your case)
+
+# Filter frequencies under cutoff
+mask = xf < cutoff
+xf_cut = xf[mask]
+yf_cut = np.abs(yf[mask])
+
+# Plot FFT (low frequencies only)
+plt.figure(figsize=(8, 4))
+plt.plot(xf_cut, yf_cut, label='FFT of adjusted deviation')
+plt.xlabel("Frequency (1/year)")
+plt.ylabel("Amplitude")
+plt.title("FFT of Orbital Deviation (Frequencies < 1/year)")
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()
 
 # --- Find valleys (local minima) ---
 maxDeviationE = max(adjustedE)
@@ -327,6 +362,8 @@ ax_orbit.plot(0, 0, 'yo', label='Sun')
 earth_marker, = ax_orbit.plot([], [], 'bo', markersize=8, label='Earth')
 mars_marker, = ax_orbit.plot([], [], 'ro', markersize=8, label='Mars')
 angle_guess_line, = ax_orbit.plot([], [], 'm--', label='User Angle Line')
+
+
 ax_orbit.set_aspect('equal')
 max_range = max(np.max(np.abs(x1s)), np.max(np.abs(x2s)))
 ax_orbit.set_xlim(-1.2 * max_range, 1.2 * max_range)
@@ -480,6 +517,7 @@ def submit_angle(text):
         last_angle = theta_deg_input
         # Use the current fov value to draw
         draw_user_angle(theta_deg_input)
+        draw_acceleration(diff_acc_x, diff_acc_y, xE, yE)
     except ValueError:
         pass
 

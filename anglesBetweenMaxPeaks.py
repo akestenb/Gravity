@@ -287,16 +287,19 @@ plt.show()'''
 #  Plot the Energy Error ( ~ e-14 ) 
 t = np.arange(steps) * dt / (60*60*24*365.25)   # years for the x-axis
 
-'''plt.figure(figsize=(10,4))
+plt.figure(figsize=(8,4))
 plt.plot(t, (E_2body - E_2body[0]) / abs(E_2body[0]), label='Earth+Mars (2-body)')
 plt.xlabel('Time (years)')
 plt.ylabel('Relative energy error ΔE / E₀')
 plt.title('Energy conservation of 4th-order symplectic integrator')
 plt.grid(True)
+plt.ylim(bottom = -2.5e-5,top = 0.5e-5 , )
+plt.xlim(left = 0, right = 1000)
 #plt.legend()
 plt.tight_layout()
 plt.show()
 
+'''
 # Plot Angular Momentum
 plt.figure(figsize=(10,4))
 plt.plot(t, (L_2body - L_2body[0]) / abs(L_2body[0]), label='Angular momentum error')
